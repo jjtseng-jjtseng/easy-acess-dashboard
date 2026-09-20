@@ -1,7 +1,7 @@
 # Dashboard
 
 A personal, local-only dashboard for the apps and sites you use most. Windows, Python 3, standard library only.
-Everything binds to `127.0.0.1`; nothing leaves your machine for privacy reasons.
+Everything binds to `127.0.0.1`; nothing leaves your machine.
 
 There are two versions. They can run at the same time.
 
@@ -28,7 +28,8 @@ Each card says when you usually use it (`Usually 8–11 PM`, `Anytime`), the cha
 The hour buttons and day picker at the top let you preview any time ("what about Saturday at 3 PM?").
 
 - **Sites** are read from the last 45 days of Chrome/Edge (Default profile) history, using each visit's timestamp,
-  so they're time-aware from the first run.
+  so they're time-aware from the first run. When a site has a favicon in that same local browser cache, the page
+  uses it; it never downloads an icon from the internet.
 - **Apps** have no history to read, so they're tracked while focused (paused after 5 minutes idle) starting from
   the first run. Until about 3 days are collected they're ordered by overall use.
 - Weekdays and weekends are learned separately; recent days count more than old ones.
@@ -39,7 +40,7 @@ The hour buttons and day picker at the top let you preview any time ("what about
 - `dashboard_time.py` - entry point
 - `timeaware/` - the parts: `config.py` (all settings), `tracker.py` and `winapi.py` (app tracking),
   `history.py` (browser history), `model.py` and `usual.py` (the time-of-day maths and labels),
-  `snapshot.py`, `server.py`, `page.html` (the page), `store.py` (saving)
+  `snapshot.py`, `server.py`, `web/` (the served page, styles, and controls), `store.py` (saving)
 
 ## Tips
 
