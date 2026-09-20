@@ -1,7 +1,7 @@
 # Dashboard
 
 A personal, local-only dashboard for the apps and sites you use most. Windows, Python 3, standard library only.
-Everything binds to `127.0.0.1`; nothing leaves your machine.
+Everything binds to `127.0.0.1`; nothing leaves your machine for privacy reasons.
 
 There are two versions. They can run at the same time.
 
