@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<title>Dashboard / time</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0c0e'/%3E%3Crect x='9' y='9' width='14' height='14' fill='%23ff6d2e'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/lists.css">
+<script>window.TOKEN = "__TOKEN__";</script>
+<script type="module" src="/main.js"></script>
+</head>
+<body>
+<div class="shell">
+
+  <header class="bar">
+    <div class="brand"><i class="mark"></i><span>Dashboard</span><span class="brand-sub">/ time</span></div>
+    <label class="find">
+      <svg class="find-ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+      <input id="find" type="text" placeholder="Find an app or site" autocomplete="off" spellcheck="false" aria-label="Find an app or site">
+      <kbd>/</kbd>
+    </label>
+    <div class="status" id="status" data-state="connecting" role="status" aria-live="polite"><i class="dot"></i><span id="statusText">connecting</span></div>
+    <button class="btn-icon" id="theme" type="button" aria-label="Switch light or dark theme" title="Switch theme">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" fill="currentColor"/></svg>
+    </button>
+  </header>
+
+  <section class="rail panel" aria-label="Time of day">
+    <div class="rail-head">
+      <div class="viewing" aria-live="polite">
+        <span class="eyebrow" id="viewDay">&nbsp;</span>
+        <span class="big" id="viewTime">&nbsp;</span>
+      </div>
+      <button class="btn-quiet" id="nowBtn" type="button" hidden>Back to now</button>
+      <div class="days" id="days" role="group" aria-label="Day of the week"></div>
+    </div>
+    <div class="hours" id="hours" role="slider" tabindex="0" aria-label="Hour of day" aria-valuemin="0" aria-valuemax="23"></div>
+    <div class="ticks" aria-hidden="true"><span>12a</span><span>6a</span><span>12p</span><span>6p</span></div>
+    <p class="caption" id="caption"></p>
+  </section>
+
+  <main id="main">
+    <div class="lists" id="lists">
+      <section class="panel" aria-labelledby="appsTitle">
+        <header class="panel-head"><h2 id="appsTitle">Apps</h2><span class="panel-sub" id="appsSub"></span><span class="count" id="appsCount">0</span></header>
+        <div class="learn" id="learn" hidden></div>
+        <div class="cols" aria-hidden="true"><span>#</span><span></span><span>Item</span><span>24h</span><span>Chance</span></div>
+        <div class="rows" id="apps"></div>
+      </section>
+      <section class="panel" aria-labelledby="sitesTitle">
+        <header class="panel-head"><h2 id="sitesTitle">Sites</h2><span class="panel-sub" id="sitesSub"></span><span class="count" id="sitesCount">0</span></header>
+        <div class="cols" aria-hidden="true"><span>#</span><span></span><span>Item</span><span>24h</span><span>Chance</span></div>
+        <div class="rows" id="sites"></div>
+      </section>
+    </div>
+
+    <section class="panel" id="results" hidden aria-label="Search results">
+      <header class="panel-head"><h2>Results</h2><span class="panel-sub" id="resultsSub"></span><span class="count" id="resultsCount">0</span></header>
+      <div class="rows" id="resultRows"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="keys"><kbd>&larr;</kbd><kbd>&rarr;</kbd><span>hour</span><kbd>&#8679;</kbd><kbd>&larr;</kbd><kbd>&rarr;</kbd><span>day</span><kbd>N</kbd><span>now</span><kbd>/</kbd><span>find</span></div>
+    <div>Local only &middot; pauses when idle &middot; Claude &amp; ChatGPT excluded</div>
+  </footer>
+  <div class="sr-only" id="announce" aria-live="polite" aria-atomic="true"></div>
+</div>
+</body>
+</html>
