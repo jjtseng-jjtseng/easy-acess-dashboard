@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard - by time of day</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #0f1115; --panel: #171a21; --panel-border: #262b36;
+  --text: #e6e8ec; --muted: #8b91a0; --accent: #6ea8fe; --on-accent: #0f1115; --bar: #364054;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --panel-border: #e2e4e9;
+    --text: #1b1e25; --muted: #666d7d; --accent: #2f6fed; --on-accent: #ffffff; --bar: #cdd2dc;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 40px 24px 64px; }
+header.top { display: flex; justify-content: space-between; align-items: baseline; }
+h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+h1 small { font-size: 14px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 8px; }
+#clock { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 15px; }
+#lead { color: var(--muted); margin: 6px 0 18px; font-size: 15px; }
+.picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 28px; }
+.chip {
+  border: 1px solid var(--panel-border); background: var(--panel); color: var(--muted);
+  padding: 5px 9px; border-radius: 999px; font: inherit; font-size: 12px; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+select.chip { margin-left: 8px; padding-right: 6px; }
+.note {
+  margin: -10px 0 28px; padding: 10px 14px; font-size: 13px; color: var(--muted);
+  background: var(--panel); border: 1px solid var(--panel-border); border-left: 3px solid var(--accent); border-radius: 10px;
+}
+section { margin-bottom: 40px; }
+.section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.section-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; font-weight: 600; }
+.count-badge { background: var(--panel-border); color: var(--muted); font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: 14px; padding: 12px 14px;
+  text-decoration: none; color: inherit;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.avatar {
+  flex: none; width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 600; font-size: 15px;
+}
+.card-body { min-width: 0; flex: 1; }
+.card-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.card-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.lift { color: var(--accent); font-weight: 600; }
+.spark { display: flex; align-items: flex-end; gap: 2px; height: 22px; margin-top: 8px; }
+.spark i { flex: 1; background: var(--bar); border-radius: 2px; min-height: 2px; }
+.spark i.on { background: var(--accent); }
+.open-btn {
+  flex: none; border: 1px solid var(--panel-border); background: transparent; color: var(--text);
+  padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer;
+}
+.open-btn:hover { border-color: var(--accent); color: var(--accent); }
+.open-btn:disabled { opacity: .6; cursor: default; }
+.chip:focus-visible, .open-btn:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.empty { color: var(--muted); font-size: 14px; }
+footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 40px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Dashboard<small>by time of day</small></h1>
+    <div id="clock"></div>
+  </header>
+  <p id="lead"></p>
+
+  <div class="picker" id="picker" role="group" aria-label="Pick a time to preview"></div>
+  <p class="note" id="note" hidden></p>
+
+  <section>
+    <div class="section-head"><h2>Apps</h2><span class="count-badge" id="appCount">0</span></div>
+    <div class="grid" id="apps"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Sites</h2><span class="count-badge" id="siteCount">0</span></div>
+    <div class="grid" id="sites"></div>
+  </section>
+
+  <footer>
+    Tracking in the background on this PC only &middot; pauses after 5min idle &middot; Claude &amp; ChatGPT excluded &middot; nothing leaves your machine<br>
+    Sites come from your last 45 days of browser history &middot; weekdays and weekends are learned separately &middot; bars show the likelihood hour by hour, the highlighted bar is the hour shown
+  </footer>
+</div>
+<script>
+const TOKEN = "__TOKEN__";
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const pick = { hour: null, dow: null };   // null means "follow the clock"
+let seq = 0;
+
+function hourText(h) { return ((h % 12) || 12) + " " + (h < 12 ? "AM" : "PM"); }
+function fmtAgo(iso) {
+  if (!iso) return "never";
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+  if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  return Math.floor(diff / 86400) + "d ago";
+}
+function hashHue(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+  return h % 360;
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function avatar(name) {
+  const initial = (name || "?").trim().charAt(0).toUpperCase();
+  return '<div class="avatar" style="background:hsl(' + hashHue(name) + ' 55% 42%)">' + escapeHtml(initial) + "</div>";
+}
+async function launchApp(id, btn) {
+  btn.disabled = true;
+  const prev = btn.textContent;
+  btn.textContent = "Opening...";
+  try {
+    const res = await fetch("/launch?id=" + encodeURIComponent(id) + "&token=" + TOKEN);
+    const j = await res.json();
+    btn.textContent = j.ok ? "Opened [ok]" : "Failed";
+  } catch (e) {
+    btn.textContent = "Failed";
+  }
+  setTimeout(() => { btn.disabled = false; btn.textContent = prev; }, 1500);
+}
+
+function spark(values, activeHour) {
+  if (!values) return "";
+  return '<div class="spark" aria-hidden="true">' + values.map((v, h) =>
+    '<i class="' + (h === activeHour ? "on" : "") + '" style="height:' + Math.max(4, Math.round(v * 100)) +
+    '%" title="' + hourText(h) + '"></i>').join("") + "</div>";
+}
+function cardBody(title, x, d, when, tip) {
+  const bits = [];
+  if (x.likelihood !== null) bits.push(Math.round(x.likelihood * 100) + "% " + when);
+  if (x.lift !== null) bits.push('<span class="lift">&#9650; ' + x.lift.toFixed(1) + "&times; usual</span>");
+  return '<div class="card-body" title="' + escapeHtml(tip) + '">' +
+    '<div class="card-title">' + escapeHtml(title) + "</div>" +
+    '<div class="card-sub">' + escapeHtml(x.usual) + "</div>" +
+    (bits.length ? '<div class="card-meta">' + bits.join(" &middot; ") + "</div>" : "") +
+    spark(x.spark, d.at.hour) + "</div>";
+}
+
+function render(d) {
+  const when = d.at.live ? "around now" : "around " + hourText(d.at.hour);
+  document.getElementById("lead").textContent =
+    "Here's what you usually reach for on a " + DAYS[d.at.dow] + " " + when + ".";
+  chips.forEach(c => c.setAttribute("aria-pressed",
+    String(c.dataset.hour === "" ? d.at.live : (!d.at.live && Number(c.dataset.hour) === d.at.hour))));
+
+  const note = document.getElementById("note");
+  note.hidden = !d.learning.apps;
+  note.textContent = "Apps are still learning your routine (" + d.learning.app_days + " of " + d.learning.need_days +
+    " days tracked), so they're ordered by overall use for now. Sites are already time-aware: your browser remembers when you visited.";
+
+  document.getElementById("appCount").textContent = d.apps.length;
+  document.getElementById("siteCount").textContent = d.sites.length;
+
+  const appsEl = document.getElementById("apps");
+  appsEl.innerHTML = "";
+  if (d.apps.length === 0) {
+    appsEl.innerHTML = '<p class="empty">Nothing tracked yet - use your computer normally and this fills in on its own.</p>';
+  }
+  d.apps.forEach(a => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = avatar(a.name) + cardBody(a.name, a, d, when, "Last used " + fmtAgo(a.last_seen));
+    const btn = document.createElement("button");
+    btn.className = "open-btn";
+    btn.textContent = "Open";
+    btn.addEventListener("click", () => launchApp(a.id, btn));
+    card.appendChild(btn);
+    appsEl.appendChild(card);
+  });
+
+  const sitesEl = document.getElementById("sites");
+  sitesEl.innerHTML = "";
+  if (!d.sites_ready) {
+    sitesEl.innerHTML = '<p class="empty">Reading your browser history...</p>';
+  } else if (d.sites.length === 0) {
+    sitesEl.innerHTML = '<p class="empty">No recent browsing history found yet.</p>';
+  }
+  d.sites.forEach(s => {
+    const card = document.createElement("a");
+    card.className = "card";
+    card.href = s.url;
+    card.target = "_blank";
+    card.rel = "noopener";
+    card.innerHTML = avatar(s.domain) +
+      cardBody(s.domain, s, d, when, s.visits + " visits in the last 45 days, last " + fmtAgo(s.last_visit));
+    sitesEl.appendChild(card);
+  });
+}
+
+async function refresh() {
+  const mine = ++seq;   // if you click through hours quickly, only the newest answer is drawn
+  const qs = "token=" + TOKEN + (pick.hour !== null ? "&hour=" + pick.hour : "") + (pick.dow !== null ? "&dow=" + pick.dow : "");
+  try {
+    const res = await fetch("/api/data?" + qs);
+    if (res.ok && mine === seq) render(await res.json());
+  } catch (e) { /* server briefly unavailable, e.g. during login startup */ }
+}
+
+const picker = document.getElementById("picker");
+const chips = [];
+function addChip(label, title, hour) {
+  const b = document.createElement("button");
+  b.className = "chip";
+  b.textContent = label;
+  b.title = title;
+  b.setAttribute("aria-label", title);
+  b.dataset.hour = hour === null ? "" : hour;
+  b.addEventListener("click", () => {
+    pick.hour = hour;
+    if (hour === null) { pick.dow = null; daySel.value = ""; }
+    refresh();
+  });
+  picker.appendChild(b);
+  chips.push(b);
+}
+const daySel = document.createElement("select");
+daySel.className = "chip";
+daySel.setAttribute("aria-label", "Day of the week");
+daySel.innerHTML = '<option value="">Today</option>' + DAYS.map((n, i) => '<option value="' + i + '">' + n + "</option>").join("");
+daySel.addEventListener("change", () => { pick.dow = daySel.value === "" ? null : Number(daySel.value); refresh(); });
+addChip("Now", "Follow the clock", null);
+for (let h = 0; h < 24; h++) addChip(((h % 12) || 12) + (h < 12 ? "a" : "p"), hourText(h), h);
+picker.appendChild(daySel);
+
+function tickClock() {
+  document.getElementById("clock").textContent =
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+tickClock();
+setInterval(tickClock, 30000);
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>
