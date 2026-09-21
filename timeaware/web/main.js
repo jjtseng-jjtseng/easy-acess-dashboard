@@ -15,7 +15,6 @@ const els = {
   apps: document.getElementById("apps"),
   appsCount: document.getElementById("appsCount"),
   appsSub: document.getElementById("appsSub"),
-  caption: document.getElementById("caption"),
   clock: document.getElementById("dashboardClock"),
   days: document.getElementById("days"),
   dialMarker: document.getElementById("dialMarker"),
@@ -164,11 +163,11 @@ function renderClock(data) {
     }
   }
 
-  els.viewDay.textContent = live ? "Live local time" : "Preview / " + DAYS[data.at.dow];
+  els.viewDay.textContent = live ? "Live" : DAYS[data.at.dow] + " / selected hour";
   els.viewTime.textContent = live
     ? timeText(new Date().getHours(), new Date().getMinutes(), new Date().getSeconds())
     : timeText(data.at.hour, 0, 0);
-  els.dialMarker.textContent = live ? "now" : "selected hour";
+  els.dialMarker.textContent = live ? "current time" : "selected hour";
   els.hours.setAttribute(
     "aria-label",
     (live ? "Local time" : "Selected time") + ": " + timeText(displayHour, live ? new Date().getMinutes() : 0, live ? new Date().getSeconds() : 0)
@@ -183,10 +182,10 @@ function renderSignal(data) {
   }) || items[1];
   const at = hourText(data.at.hour);
 
-  els.signalState.textContent = data.at.live ? "At this time" : "At " + at;
+  els.signalState.textContent = data.at.live ? "This hour" : "At " + at;
   if (!primary) {
-    els.signalName.textContent = "No pattern yet";
-    els.signalWindow.textContent = "Keep using your computer normally. This note will become useful as history builds.";
+    els.signalName.textContent = "Nothing recorded";
+    els.signalWindow.textContent = "No entry has settled here yet.";
     els.signalAlt.textContent = "";
     return;
   }
@@ -194,8 +193,8 @@ function renderSignal(data) {
   const known = primary.likelihood !== null && primary.likelihood !== undefined;
   els.signalName.textContent = primary.name + (known ? " · " + Math.round(Number(primary.likelihood) * 100) + "%" : "");
   els.signalWindow.textContent = known
-    ? (primary.usual || "A time window has not settled yet.")
-    : "Most recorded while this time pattern is still learning.";
+    ? (primary.usual || "No regular time window yet.")
+    : "Still learning this hour.";
   els.signalAlt.textContent = secondary ? "Next: " + secondary.name : "";
 }
 
@@ -209,16 +208,7 @@ function initials(item) {
 }
 
 function identity(item) {
-  const box = node("span", "row-identity", initials(item));
-  if (item.kind !== "site" || !item.icon_key) return box;
-  const image = document.createElement("img");
-  image.src = apiUrl("/api/site-icon", { key: item.icon_key });
-  image.alt = "";
-  image.addEventListener("load", function () {
-    box.textContent = "";
-    box.appendChild(image);
-  });
-  return box;
+  return node("span", "row-identity", initials(item));
 }
 
 function profile(item, activeHour) {
@@ -307,11 +297,9 @@ function render(data) {
   renderSignal(data);
 
   if (data.at.live) {
-    els.caption.textContent = "A real local clock. Use the arrows to inspect another hour.";
     els.nowBtn.hidden = true;
-    setConnection("live", "tracking");
+    setConnection("live", "recording");
   } else {
-    els.caption.textContent = "The clock is paused at the selected hour.";
     els.nowBtn.hidden = false;
     setConnection("live", "preview");
   }
@@ -323,13 +311,13 @@ function render(data) {
   els.sitesSub.textContent = data.sites_ready ? signal : "reading history";
   els.learn.hidden = !data.learning.apps;
   if (data.learning.apps) {
-    els.learn.textContent = "Learning app rhythm: " + data.learning.app_days + " of " + data.learning.need_days +
-      " days observed. Until then, apps stay ordered by overall use.";
+    els.learn.textContent = data.learning.app_days + " of " + data.learning.need_days +
+      " days recorded. Apps stay ordered by overall use until there is enough history.";
   }
 
   renderRows(els.apps, data.apps, data.at.hour, {
-    title: "No app signal yet",
-    body: "Use your computer normally and this list will fill itself in."
+    title: "No apps yet",
+    body: "This list fills as activity is recorded."
   });
   renderRows(els.sites, data.sites, data.at.hour, data.sites_ready ? {
     title: "No recent sites",
@@ -525,4 +513,3 @@ installKeyboard();
 installTheme();
 refresh();
 window.setInterval(refresh, 30000);
-

@@ -1,68 +1,70 @@
-/* Dense, scan-friendly lists. The row itself is the primary action: apps open locally,
-   sites open in a new browser tab. */
+/* The lists are a ledger: ranks, names, and useful evidence separated by ink rules. */
 .lists {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 0;
 }
+.registry { overflow: hidden; border-bottom: 3px solid var(--ink); border-radius: 0; }
 .panel-head {
-  min-height: 53px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 30px auto minmax(0, 1fr) auto;
+  min-height: 68px;
   align-items: center;
-  gap: 9px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--line);
+  gap: 10px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--ink);
 }
 .panel-head h2 {
   margin: 0;
-  font: 600 12px var(--mono);
-  letter-spacing: .12em;
+  color: var(--text);
+  font: 700 12px var(--mono);
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
+.panel-index { font: 700 10px var(--mono); letter-spacing: .05em; }
 .panel-sub {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--text-3);
-  font: 11px var(--mono);
+  font: 10px var(--mono);
 }
 .count {
-  min-width: 23px;
-  height: 20px;
+  min-width: 27px;
+  height: 24px;
   display: grid;
   place-items: center;
   margin-left: auto;
   padding: 0 5px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  color: var(--text-2);
-  font: 11px var(--mono);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  color: var(--text);
+  font: 700 10px var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .learn {
-  margin: 12px 14px 0;
-  padding: 8px 10px;
-  border-left: 2px solid var(--accent);
-  background: var(--raise);
-  color: var(--text-2);
-  font-size: 12px;
-  line-height: 1.45;
+  margin: 0;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--ink);
+  border-left: 5px solid var(--ink);
+  background: transparent;
+  color: var(--text);
+  font: 12px/1.45 var(--sans);
 }
+
 .cols,
-.data-row {
-  grid-template-columns: 26px 32px minmax(0, 1fr) 80px 74px;
-}
+.data-row { grid-template-columns: 26px 32px minmax(0, 1fr) 80px 74px; }
 .cols {
   display: grid;
   gap: 8px;
   align-items: center;
-  min-height: 34px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--line);
-  color: var(--text-3);
-  font: 10px var(--mono);
-  letter-spacing: .08em;
+  min-height: 35px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--ink);
+  color: var(--text);
+  font: 700 9px var(--mono);
+  letter-spacing: .1em;
   text-transform: uppercase;
 }
 .cols > :nth-child(4),
@@ -74,34 +76,56 @@
   display: grid;
   gap: 8px;
   align-items: center;
-  min-height: 67px;
-  padding: 8px 14px;
+  min-height: 64px;
+  padding: 9px 22px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--ink);
+  border-radius: 0;
   background: transparent;
   color: var(--text);
   text-align: left;
   text-decoration: none;
-  transition: background-color .12s ease, color .12s ease;
 }
 .rows > :last-child { border-bottom: 0; }
 .data-row::before {
-  content: "";
   position: absolute;
-  left: 0;
   top: 0;
   bottom: 0;
-  width: 2px;
+  left: 0;
+  width: 0;
   background: transparent;
+  content: "";
 }
 .data-row:hover,
-.data-row:focus-visible { background: var(--raise); }
+.data-row:focus-visible {
+  background: var(--ink);
+  color: var(--paper);
+  outline: 0;
+}
 .data-row:hover::before,
-.data-row:focus-visible::before { background: var(--accent); }
-.data-row[data-opening="true"] { color: var(--text-2); cursor: wait; }
+.data-row:focus-visible::before { width: 5px; background: var(--paper); }
+.data-row:hover .row-rank,
+.data-row:hover .row-identity,
+.data-row:hover .row-name,
+.data-row:hover .row-meta,
+.data-row:hover .row-meta .usual,
+.data-row:hover .chance,
+.data-row:hover .chance::after,
+.data-row:hover .chance > small,
+.data-row:focus-visible .row-rank,
+.data-row:focus-visible .row-identity,
+.data-row:focus-visible .row-name,
+.data-row:focus-visible .row-meta,
+.data-row:focus-visible .row-meta .usual,
+.data-row:focus-visible .chance,
+.data-row:focus-visible .chance::after,
+.data-row:focus-visible .chance > small { color: var(--paper); }
+.data-row:hover .row-identity,
+.data-row:focus-visible .row-identity { border-color: var(--paper); background: transparent; }
+.data-row[data-opening="true"] { cursor: wait; }
 .row-rank {
   color: var(--text-3);
-  font: 11px var(--mono);
+  font: 700 10px var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .row-identity {
@@ -110,35 +134,24 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  background: var(--raise);
-  color: var(--text-2);
-  font: 600 10px var(--mono);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: 700 10px var(--mono);
   letter-spacing: -.04em;
   text-transform: uppercase;
 }
-.data-row[data-kind="site"] .row-identity {
-  border-radius: 50%;
-  color: var(--accent);
-}
-.row-identity img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.row-copy {
-  display: block;
-  min-width: 0;
-}
+.data-row[data-kind="site"] .row-identity { border-radius: 0; color: var(--text); }
+.row-identity img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.row-copy { display: block; min-width: 0; }
 .row-name {
   display: block;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -.01em;
 }
 .row-meta {
@@ -158,107 +171,41 @@
   align-items: end;
   gap: 1px;
 }
-.profile i {
-  display: block;
-  min-height: 2px;
-  background: var(--bar);
-}
+.profile i { display: block; min-height: 2px; background: var(--bar); }
 .profile i[data-active] { background: var(--accent); }
-.profile-missing {
-  text-align: right;
-  color: var(--text-3);
-  font: 12px var(--mono);
-}
+.profile-missing { text-align: right; color: var(--text-3); font: 12px var(--mono); }
 .chance {
   position: relative;
   padding-right: 12px;
   text-align: right;
-  color: var(--text-2);
-  font: 600 12px var(--mono);
+  color: var(--text);
+  font: 700 12px var(--mono);
   font-variant-numeric: tabular-nums;
 }
-.chance::after {
-  content: ">";
-  position: absolute;
-  right: 0;
-  color: var(--text-3);
-  font-weight: 400;
-}
+.chance::after { position: absolute; right: 0; color: var(--text); font-weight: 400; content: ">"; }
 .chance > small {
   display: block;
   min-height: 12px;
   margin-top: 1px;
-  color: var(--accent);
+  color: var(--text);
   font: 9px var(--mono);
   letter-spacing: -.03em;
 }
 .chance--unknown { color: var(--text-3); }
-.empty {
-  margin: 0;
-  padding: 18px 16px;
-  color: var(--text-3);
-  font-size: 12px;
-  line-height: 1.55;
-}
+.empty { margin: 0; padding: 22px; color: var(--text); font: 12px/1.55 var(--sans); }
 .empty strong {
   display: block;
-  margin-bottom: 3px;
-  color: var(--text-2);
-  font: 600 11px var(--mono);
-  letter-spacing: .06em;
+  margin-bottom: 4px;
+  color: var(--text);
+  font: 700 10px var(--mono);
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
-#results { margin-top: 0; }
-#results .panel-head { border-bottom: 1px solid var(--line); }
+#results { margin-top: 0; border-top: 3px solid var(--ink); }
+#results .panel-head { border-bottom: 1px solid var(--ink); }
 #results .data-row { grid-template-columns: 26px 32px minmax(0, 1fr) 80px 74px; }
 
-@media (max-width: 960px) {
-  .lists { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 540px) {
-  .panel-head { min-height: 48px; padding: 0 12px; }
-  .cols,
-  .data-row,
-  #results .data-row { grid-template-columns: 22px 30px minmax(0, 1fr) 58px; gap: 6px; padding-left: 12px; padding-right: 12px; }
-  .cols > :nth-child(4),
-  .data-row > .profile,
-  .data-row > .profile-missing,
-  #results .data-row > .profile { display: none; }
-  .data-row { min-height: 59px; }
-  .row-identity { width: 25px; height: 25px; }
-  .row-meta { font-size: 9px; }
-  .chance { font-size: 11px; }
-  .learn { margin-left: 12px; margin-right: 12px; }
-}
-
-/* Registry treatment aligns the actionable lists with the chronograph without turning them into more cards. */
-.lists { gap: 17px; }
-.registry { overflow: hidden; border-radius: 0; }
-.panel-head {
-  display: grid;
-  grid-template-columns: 28px auto minmax(0, 1fr) auto;
-  gap: 9px;
-  min-height: 55px;
-}
-.panel-index { color: var(--accent); font: 10px var(--mono); letter-spacing: .05em; }
-.panel-head h2 { color: var(--text); font-weight: 650; }
-.count { border-radius: 2px; border-color: var(--line-2); }
-.learn { background: var(--raise); }
-.data-row { min-height: 68px; }
-.data-row:hover, .data-row:focus-visible { background: var(--raise); }
-.row-identity { border-radius: 2px; }
-.data-row[data-kind="site"] .row-identity { border-color: var(--accent); }
-.profile { border-bottom: 1px solid var(--line); }
-.chance::after { color: var(--accent); }
-
-@media (max-width: 540px) {
-  .panel-head { grid-template-columns: 22px auto minmax(0, 1fr) auto; gap: 6px; min-height: 50px; }
-  .panel-sub { display: none; }
-}
-
-/* Timebook keeps the clock and each row focused on one useful thing.
-   The written time window carries the context; 24 tiny bar charts do not. */
+/* The mini 24-hour bar charts are intentionally absent: written time windows scan faster. */
 @media (min-width: 541px) {
   .cols,
   .data-row,
@@ -266,5 +213,25 @@
   .cols > :nth-child(4),
   .data-row > .profile,
   .data-row > .profile-missing { display: none; }
+}
+
+@media (max-width: 960px) {
+  .lists { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 540px) {
+  .panel-head { grid-template-columns: 25px auto minmax(0, 1fr) auto; min-height: 58px; gap: 7px; padding: 13px 14px; }
+  .panel-sub { display: none; }
+  .cols,
+  .data-row,
+  #results .data-row { grid-template-columns: 22px 30px minmax(0, 1fr) 58px; gap: 6px; padding-right: 14px; padding-left: 14px; }
+  .cols > :nth-child(4),
+  .data-row > .profile,
+  .data-row > .profile-missing,
+  #results .data-row > .profile { display: none; }
   .data-row { min-height: 62px; }
+  .row-identity { width: 25px; height: 25px; }
+  .row-meta { font-size: 9px; }
+  .chance { font-size: 11px; }
+  .learn { padding-right: 14px; padding-left: 14px; }
 }
