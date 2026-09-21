@@ -256,3 +256,15 @@
   .panel-head { grid-template-columns: 22px auto minmax(0, 1fr) auto; gap: 6px; min-height: 50px; }
   .panel-sub { display: none; }
 }
+
+/* Timebook keeps the clock and each row focused on one useful thing.
+   The written time window carries the context; 24 tiny bar charts do not. */
+@media (min-width: 541px) {
+  .cols,
+  .data-row,
+  #results .data-row { grid-template-columns: 26px 32px minmax(0, 1fr) 74px; }
+  .cols > :nth-child(4),
+  .data-row > .profile,
+  .data-row > .profile-missing { display: none; }
+  .data-row { min-height: 62px; }
+}

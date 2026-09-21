@@ -1,5 +1,4 @@
-/* Dashboard / time client. It intentionally uses only browser APIs: the Python
-   server remains the single source of truth for ranking and search. */
+/* Timebook client. Local data remains the source of truth; the clock only presents time. */
 const TOKEN = window.TOKEN || "";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const state = {
@@ -9,7 +8,6 @@ const state = {
   dataSequence: 0,
   searchSequence: 0,
   searchTimer: 0,
-  railTimer: 0,
 };
 
 const els = {
@@ -18,9 +16,9 @@ const els = {
   appsCount: document.getElementById("appsCount"),
   appsSub: document.getElementById("appsSub"),
   caption: document.getElementById("caption"),
+  clock: document.getElementById("dashboardClock"),
   days: document.getElementById("days"),
   dialMarker: document.getElementById("dialMarker"),
-  dialSvg: document.getElementById("dialSvg"),
   find: document.getElementById("find"),
   hours: document.getElementById("hours"),
   learn: document.getElementById("learn"),
@@ -33,11 +31,7 @@ const els = {
   resultsSub: document.getElementById("resultsSub"),
   resultRows: document.getElementById("resultRows"),
   signalAlt: document.getElementById("signalAlt"),
-  signalIndex: document.getElementById("signalIndex"),
-  signalKind: document.getElementById("signalKind"),
   signalName: document.getElementById("signalName"),
-  signalRate: document.getElementById("signalRate"),
-  signalRateLabel: document.getElementById("signalRateLabel"),
   signalState: document.getElementById("signalState"),
   signalWindow: document.getElementById("signalWindow"),
   sites: document.getElementById("sites"),
@@ -67,10 +61,14 @@ function hourText(hour, compact) {
   return String((h % 12) || 12) + (compact ? suffix.charAt(0).toLowerCase() : " " + suffix);
 }
 
-function timeText(hour, minute) {
+function timeText(hour, minute, second) {
   const h = Number(hour) % 24;
   const min = String(Number(minute || 0)).padStart(2, "0");
-  return String((h % 12) || 12) + ":" + min + " " + (h < 12 ? "AM" : "PM");
+  const suffix = h < 12 ? "AM" : "PM";
+  if (second === undefined || second === null) {
+    return String((h % 12) || 12) + ":" + min + " " + suffix;
+  }
+  return String((h % 12) || 12) + ":" + min + ":" + String(Number(second || 0)).padStart(2, "0") + " " + suffix;
 }
 
 function relativeTime(iso) {
@@ -134,61 +132,47 @@ function renderDays(data) {
   els.days.replaceChildren(fragment);
 }
 
-function svgNode(tag, attributes) {
-  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
-  Object.entries(attributes || {}).forEach(function (entry) {
-    element.setAttribute(entry[0], String(entry[1]));
-  });
-  return element;
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function polar(radius, hour) {
-  const angle = ((Number(hour) * 15) - 90) * Math.PI / 180;
-  return { x: 130 + radius * Math.cos(angle), y: 130 + radius * Math.sin(angle) };
+function previewEpoch(hour) {
+  const preview = new Date();
+  preview.setHours(Number(hour), 0, 0, 0);
+  return preview.getTime();
 }
 
-function lineAtHour(hour, startRadius, endRadius, className) {
-  const start = polar(startRadius, hour);
-  const end = polar(endRadius, hour);
-  return svgNode("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y, class: className });
+function updateLiveReadout() {
+  if (!state.data || !state.data.at.live || document.hidden) return;
+  const now = new Date();
+  els.viewTime.textContent = timeText(now.getHours(), now.getMinutes(), now.getSeconds());
 }
 
-function rhythmKind(dow) {
-  return Number(dow) < 5 ? "weekday" : "weekend";
-}
+function renderClock(data) {
+  const clock = els.clock;
+  const live = data.at.live;
+  const displayHour = live ? new Date().getHours() : data.at.hour;
 
-function renderDial(data) {
-  const fragment = document.createDocumentFragment();
-  fragment.appendChild(svgNode("circle", { cx: 130, cy: 130, r: 113, class: "dial-boundary" }));
-  fragment.appendChild(svgNode("circle", { cx: 130, cy: 130, r: 87, class: "dial-boundary" }));
-
-  for (let hour = 0; hour < 24; hour += 1) {
-    const group = svgNode("g", { class: "dial-hour" });
-    const value = clamp(Number((data.rhythm || [])[hour] || 0), 0, 1);
-    if (hour === data.at.hour) group.classList.add("is-active");
-    if (hour === data.today.hour) group.classList.add("is-now");
-    group.appendChild(lineAtHour(hour, 114, hour % 3 === 0 ? 102 : 106, "hour-tick"));
-    group.appendChild(lineAtHour(hour, 91, 86 - Math.round(value * 31), "hour-signal"));
-    fragment.appendChild(group);
+  if (clock && typeof clock.setEpochMs === "function") {
+    if (live) {
+      clock.syncToSystemTime();
+      if (prefersReducedMotion()) clock.pause();
+      else clock.resume();
+    } else {
+      clock.setEpochMs(previewEpoch(data.at.hour));
+      clock.pause();
+    }
   }
 
-  [0, 6, 12, 18].forEach(function (hour) {
-    const point = polar(96, hour);
-    const label = svgNode("text", { x: point.x, y: point.y, class: "dial-label" });
-    label.textContent = String(hour).padStart(2, "0");
-    fragment.appendChild(label);
-  });
-
-  const handHour = data.at.live
-    ? data.today.hour + data.today.minute / 60
-    : data.at.hour + .5;
-  const tip = polar(83, handHour);
-  fragment.appendChild(svgNode("line", { x1: 130, y1: 130, x2: tip.x, y2: tip.y, class: "needle" }));
-  fragment.appendChild(svgNode("circle", { cx: tip.x, cy: tip.y, r: 3.5, class: "needle-tip" }));
-  fragment.appendChild(svgNode("circle", { cx: 130, cy: 130, r: 6, class: "hub" }));
-  els.dialSvg.replaceChildren(fragment);
-  els.hours.setAttribute("aria-valuenow", String(data.at.hour));
-  els.hours.setAttribute("aria-valuetext", hourText(data.at.hour) + ", " + rhythmKind(data.at.dow) + " rhythm");
+  els.viewDay.textContent = live ? "Live local time" : "Preview / " + DAYS[data.at.dow];
+  els.viewTime.textContent = live
+    ? timeText(new Date().getHours(), new Date().getMinutes(), new Date().getSeconds())
+    : timeText(data.at.hour, 0, 0);
+  els.dialMarker.textContent = live ? "now" : "selected hour";
+  els.hours.setAttribute(
+    "aria-label",
+    (live ? "Local time" : "Selected time") + ": " + timeText(displayHour, live ? new Date().getMinutes() : 0, live ? new Date().getSeconds() : 0)
+  );
 }
 
 function renderSignal(data) {
@@ -197,33 +181,22 @@ function renderSignal(data) {
   const secondary = items.find(function (item, index) {
     return index > 0 && item.kind !== (primary && primary.kind);
   }) || items[1];
-  const kind = rhythmKind(data.at.dow);
-  els.signalState.textContent = data.at.live ? kind + " signal" : "preview signal";
-  els.signalIndex.textContent = String(data.at.hour).padStart(2, "0") + ":00";
+  const at = hourText(data.at.hour);
 
+  els.signalState.textContent = data.at.live ? "At this time" : "At " + at;
   if (!primary) {
-    els.signalKind.textContent = "Activity signal";
-    els.signalName.textContent = "No signal yet";
-    els.signalRate.textContent = "--";
-    els.signalRateLabel.textContent = "learning";
-    els.signalWindow.textContent = "Keep using your computer normally; this clock will gain a useful rhythm.";
-    els.signalAlt.textContent = "No secondary signal yet";
+    els.signalName.textContent = "No pattern yet";
+    els.signalWindow.textContent = "Keep using your computer normally. This note will become useful as history builds.";
+    els.signalAlt.textContent = "";
     return;
   }
 
   const known = primary.likelihood !== null && primary.likelihood !== undefined;
-  els.signalKind.textContent = known
-    ? "Likely next " + (primary.kind === "app" ? "app" : "site")
-    : "Top recorded " + (primary.kind === "app" ? "app" : "site");
-  els.signalName.textContent = primary.name;
-  els.signalRate.textContent = known ? Math.round(Number(primary.likelihood) * 100) + "%" : "--";
-  els.signalRateLabel.textContent = known ? "match" : "learning";
+  els.signalName.textContent = primary.name + (known ? " · " + Math.round(Number(primary.likelihood) * 100) + "%" : "");
   els.signalWindow.textContent = known
-    ? (primary.usual || "No time window established yet.")
-    : "Ranking by recorded use while this timing pattern is still learning.";
-  els.signalAlt.textContent = secondary
-    ? secondary.name + (secondary.usual ? " / " + secondary.usual : "")
-    : "No secondary signal yet";
+    ? (primary.usual || "A time window has not settled yet.")
+    : "Most recorded while this time pattern is still learning.";
+  els.signalAlt.textContent = secondary ? "Next: " + secondary.name : "";
 }
 
 function initials(item) {
@@ -330,23 +303,15 @@ function renderRows(container, items, activeHour, fallback) {
 function render(data) {
   state.data = data;
   renderDays(data);
-  renderDial(data);
+  renderClock(data);
   renderSignal(data);
 
   if (data.at.live) {
-    els.viewDay.textContent = "Live / " + rhythmKind(data.at.dow) + " rhythm";
-    els.viewTime.textContent = timeText(data.today.hour, data.today.minute);
-    els.dialMarker.textContent = "now";
-    els.caption.textContent = "The orange hand marks the current minute. Inner bars show peak-normalized " +
-      rhythmKind(data.at.dow) + " activity by hour.";
+    els.caption.textContent = "A real local clock. Use the arrows to inspect another hour.";
     els.nowBtn.hidden = true;
     setConnection("live", "tracking");
   } else {
-    els.viewDay.textContent = "Preview / " + DAYS[data.at.dow];
-    els.viewTime.textContent = hourText(data.at.hour);
-    els.dialMarker.textContent = "selected hour";
-    els.caption.textContent = "This is the " + rhythmKind(data.at.dow) + " rhythm. Drag or click the dial to inspect " +
-      "another hour; use Shift with arrows to change the day.";
+    els.caption.textContent = "The clock is paused at the selected hour.";
     els.nowBtn.hidden = false;
     setConnection("live", "preview");
   }
@@ -455,27 +420,14 @@ function query(value, immediate) {
   else state.searchTimer = window.setTimeout(perform, 150);
 }
 
-function setHour(hour, deferred) {
+function setHour(hour) {
   state.hour = clamp(Number(hour), 0, 23);
-  window.clearTimeout(state.railTimer);
-  if (deferred) {
-    state.railTimer = window.setTimeout(refresh, 90);
-  } else {
-    refresh();
-  }
-}
-
-function hourAtPointer(event) {
-  const rect = els.hours.getBoundingClientRect();
-  const x = event.clientX - (rect.left + rect.width / 2);
-  const y = event.clientY - (rect.top + rect.height / 2);
-  const degrees = (Math.atan2(y, x) * 180 / Math.PI + 450) % 360;
-  return Math.floor(degrees / 15 + .5) % 24;
+  refresh();
 }
 
 function moveHour(delta) {
   const base = state.hour === null ? (state.data ? state.data.at.hour : new Date().getHours()) : state.hour;
-  setHour((base + delta + 24) % 24, false);
+  setHour((base + delta + 24) % 24);
 }
 
 function moveDay(delta) {
@@ -515,44 +467,21 @@ function installKeyboard() {
       resetNow();
       return;
     }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setHour(0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setHour(23);
+      return;
+    }
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
       const delta = event.key === "ArrowLeft" ? -1 : 1;
       if (event.shiftKey) moveDay(delta);
       else moveHour(delta);
-    }
-  });
-}
-
-function installRail() {
-  let dragging = false;
-  els.hours.addEventListener("pointerdown", function (event) {
-    dragging = true;
-    els.hours.setPointerCapture(event.pointerId);
-    setHour(hourAtPointer(event), true);
-    event.preventDefault();
-  });
-  els.hours.addEventListener("pointermove", function (event) {
-    if (dragging) setHour(hourAtPointer(event), true);
-  });
-  function finish(event) {
-    if (!dragging) return;
-    dragging = false;
-    window.clearTimeout(state.railTimer);
-    setHour(hourAtPointer(event), false);
-  }
-  els.hours.addEventListener("pointerup", finish);
-  els.hours.addEventListener("pointercancel", finish);
-  els.hours.addEventListener("keydown", function (event) {
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      event.preventDefault();
-      moveHour(event.key === "ArrowLeft" ? -1 : 1);
-    } else if (event.key === "Home") {
-      event.preventDefault();
-      setHour(0, false);
-    } else if (event.key === "End") {
-      event.preventDefault();
-      setHour(23, false);
     }
   });
 }
@@ -582,8 +511,18 @@ els.find.addEventListener("input", function () { query(els.find.value, false); }
 els.nowBtn.addEventListener("click", resetNow);
 els.prevHour.addEventListener("click", function () { moveHour(-1); });
 els.nextHour.addEventListener("click", function () { moveHour(1); });
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden) {
+    updateLiveReadout();
+    if (state.data && state.data.at.live && els.clock && typeof els.clock.syncToSystemTime === "function") {
+      els.clock.syncToSystemTime();
+      if (!prefersReducedMotion()) els.clock.resume();
+    }
+  }
+});
+window.setInterval(updateLiveReadout, 1000);
 installKeyboard();
-installRail();
 installTheme();
 refresh();
 window.setInterval(refresh, 30000);
+
