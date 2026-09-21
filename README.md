@@ -20,3 +20,6 @@ Data doesn't leave your computer for privacy reasons. (it would be unideal for m
 - **Sites** --Tracks the past 45 days of Chrome history and uses the favicon for the website icon.
 - **Apps** --Listner tracks and looks ever 5 min startingn from the terminal command.
 
+# _____
+
+Good luck with your download and happy time tracking / time management! :)
