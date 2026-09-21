@@ -16,6 +16,8 @@ permissions:
 
 jobs:
   build-and-publish:
+    # Creating a release branch is only setup. A later "Release vX.Y.Z" commit starts publication.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'Release v')
     runs-on: windows-latest
     defaults:
       run:
@@ -101,3 +103,4 @@ jobs:
           } else {
             gh release create $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --target $env:GITHUB_SHA --title "Dashboard Time $env:RELEASE_TAG" --generate-notes
           }
+
