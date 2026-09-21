@@ -19,15 +19,27 @@ const els = {
   appsSub: document.getElementById("appsSub"),
   caption: document.getElementById("caption"),
   days: document.getElementById("days"),
+  dialMarker: document.getElementById("dialMarker"),
+  dialSvg: document.getElementById("dialSvg"),
   find: document.getElementById("find"),
   hours: document.getElementById("hours"),
   learn: document.getElementById("learn"),
   lists: document.getElementById("lists"),
   nowBtn: document.getElementById("nowBtn"),
+  nextHour: document.getElementById("nextHour"),
+  prevHour: document.getElementById("prevHour"),
   results: document.getElementById("results"),
   resultsCount: document.getElementById("resultsCount"),
   resultsSub: document.getElementById("resultsSub"),
   resultRows: document.getElementById("resultRows"),
+  signalAlt: document.getElementById("signalAlt"),
+  signalIndex: document.getElementById("signalIndex"),
+  signalKind: document.getElementById("signalKind"),
+  signalName: document.getElementById("signalName"),
+  signalRate: document.getElementById("signalRate"),
+  signalRateLabel: document.getElementById("signalRateLabel"),
+  signalState: document.getElementById("signalState"),
+  signalWindow: document.getElementById("signalWindow"),
   sites: document.getElementById("sites"),
   sitesCount: document.getElementById("sitesCount"),
   sitesSub: document.getElementById("sitesSub"),
@@ -122,23 +134,96 @@ function renderDays(data) {
   els.days.replaceChildren(fragment);
 }
 
-function renderHours(data) {
-  const fragment = document.createDocumentFragment();
-  const currentHour = data.today.hour;
-  data.rhythm.forEach(function (value, hour) {
-    const column = node("i");
-    const bar = node("b");
-    const height = Math.max(4, Math.round(Number(value || 0) * 100));
-    bar.style.height = height + "%";
-    column.title = hourText(hour) + " - activity signal " + Math.round(Number(value || 0) * 100) + "%";
-    if (hour === data.at.hour) column.dataset.on = "";
-    if (data.at.live && hour === currentHour) column.dataset.now = "";
-    column.appendChild(bar);
-    fragment.appendChild(column);
+function svgNode(tag, attributes) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  Object.entries(attributes || {}).forEach(function (entry) {
+    element.setAttribute(entry[0], String(entry[1]));
   });
-  els.hours.replaceChildren(fragment);
+  return element;
+}
+
+function polar(radius, hour) {
+  const angle = ((Number(hour) * 15) - 90) * Math.PI / 180;
+  return { x: 130 + radius * Math.cos(angle), y: 130 + radius * Math.sin(angle) };
+}
+
+function lineAtHour(hour, startRadius, endRadius, className) {
+  const start = polar(startRadius, hour);
+  const end = polar(endRadius, hour);
+  return svgNode("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y, class: className });
+}
+
+function rhythmKind(dow) {
+  return Number(dow) < 5 ? "weekday" : "weekend";
+}
+
+function renderDial(data) {
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(svgNode("circle", { cx: 130, cy: 130, r: 113, class: "dial-boundary" }));
+  fragment.appendChild(svgNode("circle", { cx: 130, cy: 130, r: 87, class: "dial-boundary" }));
+
+  for (let hour = 0; hour < 24; hour += 1) {
+    const group = svgNode("g", { class: "dial-hour" });
+    const value = clamp(Number((data.rhythm || [])[hour] || 0), 0, 1);
+    if (hour === data.at.hour) group.classList.add("is-active");
+    if (hour === data.today.hour) group.classList.add("is-now");
+    group.appendChild(lineAtHour(hour, 114, hour % 3 === 0 ? 102 : 106, "hour-tick"));
+    group.appendChild(lineAtHour(hour, 91, 86 - Math.round(value * 31), "hour-signal"));
+    fragment.appendChild(group);
+  }
+
+  [0, 6, 12, 18].forEach(function (hour) {
+    const point = polar(96, hour);
+    const label = svgNode("text", { x: point.x, y: point.y, class: "dial-label" });
+    label.textContent = String(hour).padStart(2, "0");
+    fragment.appendChild(label);
+  });
+
+  const handHour = data.at.live
+    ? data.today.hour + data.today.minute / 60
+    : data.at.hour + .5;
+  const tip = polar(83, handHour);
+  fragment.appendChild(svgNode("line", { x1: 130, y1: 130, x2: tip.x, y2: tip.y, class: "needle" }));
+  fragment.appendChild(svgNode("circle", { cx: tip.x, cy: tip.y, r: 3.5, class: "needle-tip" }));
+  fragment.appendChild(svgNode("circle", { cx: 130, cy: 130, r: 6, class: "hub" }));
+  els.dialSvg.replaceChildren(fragment);
   els.hours.setAttribute("aria-valuenow", String(data.at.hour));
-  els.hours.setAttribute("aria-valuetext", hourText(data.at.hour));
+  els.hours.setAttribute("aria-valuetext", hourText(data.at.hour) + ", " + rhythmKind(data.at.dow) + " rhythm");
+}
+
+function renderSignal(data) {
+  const items = data.apps.concat(data.sites);
+  const primary = items[0];
+  const secondary = items.find(function (item, index) {
+    return index > 0 && item.kind !== (primary && primary.kind);
+  }) || items[1];
+  const kind = rhythmKind(data.at.dow);
+  els.signalState.textContent = data.at.live ? kind + " signal" : "preview signal";
+  els.signalIndex.textContent = String(data.at.hour).padStart(2, "0") + ":00";
+
+  if (!primary) {
+    els.signalKind.textContent = "Activity signal";
+    els.signalName.textContent = "No signal yet";
+    els.signalRate.textContent = "--";
+    els.signalRateLabel.textContent = "learning";
+    els.signalWindow.textContent = "Keep using your computer normally; this clock will gain a useful rhythm.";
+    els.signalAlt.textContent = "No secondary signal yet";
+    return;
+  }
+
+  const known = primary.likelihood !== null && primary.likelihood !== undefined;
+  els.signalKind.textContent = known
+    ? "Likely next " + (primary.kind === "app" ? "app" : "site")
+    : "Top recorded " + (primary.kind === "app" ? "app" : "site");
+  els.signalName.textContent = primary.name;
+  els.signalRate.textContent = known ? Math.round(Number(primary.likelihood) * 100) + "%" : "--";
+  els.signalRateLabel.textContent = known ? "match" : "learning";
+  els.signalWindow.textContent = known
+    ? (primary.usual || "No time window established yet.")
+    : "Ranking by recorded use while this timing pattern is still learning.";
+  els.signalAlt.textContent = secondary
+    ? secondary.name + (secondary.usual ? " / " + secondary.usual : "")
+    : "No secondary signal yet";
 }
 
 function initials(item) {
@@ -245,18 +330,23 @@ function renderRows(container, items, activeHour, fallback) {
 function render(data) {
   state.data = data;
   renderDays(data);
-  renderHours(data);
+  renderDial(data);
+  renderSignal(data);
 
   if (data.at.live) {
-    els.viewDay.textContent = "Live signal / " + DAYS[data.today.dow];
+    els.viewDay.textContent = "Live / " + rhythmKind(data.at.dow) + " rhythm";
     els.viewTime.textContent = timeText(data.today.hour, data.today.minute);
-    els.caption.textContent = "LIVE - activity signal from your local history. Drag the strip or use arrows to preview a moment.";
+    els.dialMarker.textContent = "now";
+    els.caption.textContent = "The orange hand marks the current minute. Inner bars show peak-normalized " +
+      rhythmKind(data.at.dow) + " activity by hour.";
     els.nowBtn.hidden = true;
-    setConnection("live", "live");
+    setConnection("live", "tracking");
   } else {
     els.viewDay.textContent = "Preview / " + DAYS[data.at.dow];
     els.viewTime.textContent = hourText(data.at.hour);
-    els.caption.textContent = "PREVIEW - ranking for " + DAYS[data.at.dow] + " " + hourText(data.at.hour) + ". Drag, click, or use arrows to change it.";
+    els.dialMarker.textContent = "selected hour";
+    els.caption.textContent = "This is the " + rhythmKind(data.at.dow) + " rhythm. Drag or click the dial to inspect " +
+      "another hour; use Shift with arrows to change the day.";
     els.nowBtn.hidden = false;
     setConnection("live", "preview");
   }
@@ -377,8 +467,10 @@ function setHour(hour, deferred) {
 
 function hourAtPointer(event) {
   const rect = els.hours.getBoundingClientRect();
-  const fraction = (event.clientX - rect.left) / rect.width;
-  return clamp(Math.floor(fraction * 24), 0, 23);
+  const x = event.clientX - (rect.left + rect.width / 2);
+  const y = event.clientY - (rect.top + rect.height / 2);
+  const degrees = (Math.atan2(y, x) * 180 / Math.PI + 450) % 360;
+  return Math.floor(degrees / 15 + .5) % 24;
 }
 
 function moveHour(delta) {
@@ -488,6 +580,8 @@ function installTheme() {
 
 els.find.addEventListener("input", function () { query(els.find.value, false); });
 els.nowBtn.addEventListener("click", resetNow);
+els.prevHour.addEventListener("click", function () { moveHour(-1); });
+els.nextHour.addEventListener("click", function () { moveHour(1); });
 installKeyboard();
 installRail();
 installTheme();
