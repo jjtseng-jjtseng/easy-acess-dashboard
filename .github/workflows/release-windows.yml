@@ -37,9 +37,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-build.txt
 
-      - name: Build Dashboard-Time for Windows x64
+      - name: Build Time Board for Windows x64
         run: |
-          python -m PyInstaller --noconfirm --clean --onedir --windowed --name Dashboard-Time --collect-submodules timeaware --add-data "timeaware/web;timeaware/web" dashboard_time.py
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name Time-Board --collect-submodules timeaware --add-data "timeaware/web;timeaware/web" dashboard_time.py
 
       - name: Smoke-test the frozen application
         run: |
@@ -47,13 +47,13 @@ jobs:
           if ($listener) {
             throw "Port 47822 is already in use before the frozen-app smoke test."
           }
-          $process = Start-Process -FilePath ".\dist\Dashboard-Time\Dashboard-Time.exe" -ArgumentList "--no-open" -PassThru
+          $process = Start-Process -FilePath ".\dist\Time-Board\Time-Board.exe" -ArgumentList "--no-open" -PassThru
           try {
             $deadline = (Get-Date).AddSeconds(25)
             $response = $null
             while ((Get-Date) -lt $deadline -and $null -eq $response) {
               if ($process.HasExited) {
-                throw "Dashboard-Time.exe exited before it served the dashboard."
+                throw "Time-Board.exe exited before it served the dashboard."
               }
               try {
                 $candidate = Invoke-WebRequest -Uri "http://127.0.0.1:47822/" -TimeoutSec 2
@@ -65,7 +65,7 @@ jobs:
               }
             }
             if ($null -eq $response) {
-              throw "Dashboard-Time.exe did not serve HTTP 200 on port 47822."
+              throw "Time-Board.exe did not serve HTTP 200 on port 47822."
             }
           } finally {
             if (!$process.HasExited) {
@@ -82,12 +82,12 @@ jobs:
           if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
             throw "Release tag must look like vMAJOR.MINOR.PATCH; got '$tag'."
           }
-          $asset = "Dashboard-Time-win-x64-$tag.zip"
-          $privateFiles = Get-ChildItem -Path ".\dist\Dashboard-Time" -Recurse -File | Where-Object { $_.Name -in @("data.json", "time_data.json") }
+          $asset = "Time-Board-win-x64-$tag.zip"
+          $privateFiles = Get-ChildItem -Path ".\dist\Time-Board" -Recurse -File | Where-Object { $_.Name -in @("data.json", "time_data.json") }
           if ($privateFiles) {
             throw "Refusing to package user activity data: $($privateFiles.FullName -join ', ')."
           }
-          Compress-Archive -Path ".\dist\Dashboard-Time" -DestinationPath $asset -CompressionLevel Optimal
+          Compress-Archive -Path ".\dist\Time-Board" -DestinationPath $asset -CompressionLevel Optimal
           $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLower()
           "$hash  $asset" | Set-Content "$asset.sha256" -NoNewline -Encoding ascii
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -101,6 +101,5 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             gh release upload $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --clobber
           } else {
-            gh release create $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --target $env:GITHUB_SHA --title "Dashboard Time $env:RELEASE_TAG" --generate-notes
+            gh release create $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --target $env:GITHUB_SHA --title "Time Board $env:RELEASE_TAG" --generate-notes
           }
-

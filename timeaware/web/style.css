@@ -1,4 +1,4 @@
-/* Timebook is a local time ledger: white paper, black ink, and no decoration that is not useful. */
+/* Time Board is a local time ledger: white paper, black ink, and no decoration that is not useful. */
 :root {
   color-scheme: light dark;
   --paper: light-dark(#ffffff, #000000);
@@ -81,7 +81,6 @@ a { color: inherit; }
   background: currentColor;
   content: "";
 }
-.brand-sub { font-weight: 400; letter-spacing: .04em; }
 .find { position: relative; display: flex; min-width: 0; align-items: center; color: var(--ink); }
 .find input {
   width: 100%;
@@ -133,21 +132,10 @@ kbd {
 .chronograph { margin-top: 32px; overflow: hidden; border-top: 3px solid var(--ink); border-bottom: 3px solid var(--ink); }
 .instrument-head {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 30px 0 26px;
-}
-.section-label {
-  margin: 0 0 8px;
-  font: 700 10px var(--mono);
-  letter-spacing: .14em;
-  text-transform: uppercase;
-}
-.instrument-head h1 {
-  margin: 0;
-  font: 600 clamp(31px, 4.3vw, 56px)/.94 var(--display);
-  letter-spacing: -.055em;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+  padding: 16px 0;
 }
 .instrument-actions { display: flex; min-width: 0; align-items: center; }
 .days {
@@ -317,17 +305,16 @@ main { margin-top: 0; }
   .shell { padding: 16px 16px 48px; }
   .bar { grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
   .find { grid-column: 1 / -1; grid-row: 2; }
-  .instrument-head { align-items: flex-start; flex-direction: column; gap: 20px; }
+  .instrument-head { align-items: center; justify-content: center; }
   .instrument-actions { width: 100%; }
   .days { width: 100%; }
   .days button { min-width: 0; padding: 0; }
 }
 
 @media (max-width: 580px) {
-  .brand-sub, .status span { display: none; }
+  .status span { display: none; }
   .chronograph { margin-top: 22px; }
-  .instrument-head { padding: 25px 0 22px; }
-  .instrument-head h1 { font-size: clamp(31px, 12vw, 47px); }
+  .instrument-head { min-height: 62px; padding: 9px 0; }
   .days button { min-height: 44px; }
   .clock-stage {
     grid-template-columns: 1fr;

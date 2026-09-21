@@ -1,4 +1,4 @@
-/* Timebook client. Local data remains the source of truth; the clock only presents time. */
+/* Time Board client. Local data remains the source of truth; the clock only presents time. */
 const TOKEN = window.TOKEN || "";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const state = {
@@ -208,7 +208,16 @@ function initials(item) {
 }
 
 function identity(item) {
-  return node("span", "row-identity", initials(item));
+  const box = node("span", "row-identity", initials(item));
+  if (item.kind !== "site" || !item.icon_key) return box;
+  const image = document.createElement("img");
+  image.src = apiUrl("/api/site-icon", { key: item.icon_key });
+  image.alt = "";
+  image.addEventListener("load", function () {
+    box.textContent = "";
+    box.appendChild(image);
+  });
+  return box;
 }
 
 function profile(item, activeHour) {
