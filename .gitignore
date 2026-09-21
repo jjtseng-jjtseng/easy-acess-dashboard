@@ -1,0 +1,12 @@
+# Python bytecode and build products
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.spec
+
+# Personal local activity data - never commit or ship it.
+data.json
+time_data.json
+*.corrupt
+*.tmp

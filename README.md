@@ -21,6 +21,15 @@ pythonw dashboard_time.py --no-open  # start quietly in the background
 
 Starting it a second time just exits if it's already running.
 
+## Windows release
+
+GitHub Releases provides a Windows x64 ZIP named Dashboard-Time-win-x64-vX.Y.Z.zip. Extract the complete
+Dashboard-Time folder and run Dashboard-Time.exe; the _internal folder beside it is required.
+
+The release does not include your activity history. A packaged copy keeps its own private data at
+%LOCALAPPDATA%\Dashboard-Time\time_data.json, so it survives app upgrades without being committed to GitHub.
+Each release also includes a .sha256 checksum file for the ZIP.
+
 ## The time-aware version
 
 Each card says when you usually use it (`Usually 8–11 PM`, `Anytime`), the chance you'll use it around now, a

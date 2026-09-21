@@ -1,11 +1,14 @@
 # Settings for the time-aware dashboard (dashboard_time.py) - edit freely, read once at startup.
-# Everything is local: binds to 127.0.0.1 only, no network calls, data lives next to dashboard.py.
+# Everything is local: binds to 127.0.0.1 only, no network calls. Source data lives next to dashboard.py;
+# packaged releases keep their writable data under the current Windows user's LocalAppData folder.
 import os
+import sys
 
 # ---------------------------------------------------------------------------
 # Running
 # ---------------------------------------------------------------------------
 PORT = 47822                   # dashboard.py uses 47821, so both versions can run side by side
+FROZEN = bool(getattr(sys, "frozen", False))
 POLL_INTERVAL = 5              # seconds between "what app is focused" checks
 IDLE_THRESHOLD_SECONDS = 300   # pause recording after this long with no keyboard/mouse input
 SAVE_EVERY_N_POLLS = 12        # write time_data.json roughly every 60s
@@ -13,7 +16,9 @@ HISTORY_SCAN_INTERVAL = 600    # seconds between browser-history rescans
 HISTORY_WINDOW_DAYS = 45       # only count site visits from the last N days
 APP_LOG_RETENTION_DAYS = 120   # forget per-hour app usage older than this
 TOP_N = 10
-SEED_FROM_ORIGINAL = True      # first run only: borrow app names/paths/totals from dashboard.py's data.json
+SEED_FROM_ORIGINAL = not FROZEN
+# In source mode only, first run borrows app names/paths/totals from dashboard.py's data.json.
+# A public packaged release always starts with a clean, private local data store.
 
 # ---------------------------------------------------------------------------
 # What counts as "you used it" during one clock hour on one day
@@ -51,14 +56,30 @@ SYSTEM_NOISE = {
     "shellexperiencehost.exe", "lockapp.exe", "logonui.exe", "dwm.exe",
     "textinputhost.exe", "systemsettings.exe", "applicationframehost.exe",
     "searchapp.exe", "widgets.exe", "peopleexperiencehost.exe",
-    "pickerhost.exe", "shellhost.exe",  # file-dialog and shell helpers, not apps you chose to use
-}
+    "pickerhost.exe", "shellhost.exe", "openwith.exe", "consent.exe", "credentialuibroker.exe",
+}  # the last few are file-dialog, shell and permission-prompt helpers, not apps you chose to use
 
 # ---------------------------------------------------------------------------
 # Files
 # ---------------------------------------------------------------------------
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.dirname(PACKAGE_DIR)  # the Dashboard folder, next to dashboard.py
+
+
+def _data_dir():
+    """Choose a durable writable location without moving source-mode data."""
+    if not FROZEN:
+        return os.path.dirname(PACKAGE_DIR)  # the source Dashboard folder, next to dashboard.py
+
+    target = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "Dashboard-Time")
+    try:
+        os.makedirs(target, exist_ok=True)
+        return target
+    except OSError:
+        # A read-only or unusually restricted profile is rare, but the executable's folder is a usable fallback.
+        return os.path.dirname(os.path.abspath(sys.executable))
+
+
+BASE_DIR = _data_dir()
 DATA_FILE = os.path.join(BASE_DIR, "time_data.json")
 ORIGINAL_DATA_FILE = os.path.join(BASE_DIR, "data.json")
-PAGE_FILE = os.path.join(PACKAGE_DIR, "page.html")
+WEB_DIR = os.path.join(PACKAGE_DIR, "web")  # the page: index.html, style.css and scripts

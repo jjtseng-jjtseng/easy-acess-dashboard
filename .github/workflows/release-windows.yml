@@ -1,0 +1,103 @@
+name: Build Windows release
+
+on:
+  push:
+    branches:
+      - "release/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install the packager
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Build Dashboard-Time for Windows x64
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name Dashboard-Time --collect-submodules timeaware --add-data "timeaware/web;timeaware/web" dashboard_time.py
+
+      - name: Smoke-test the frozen application
+        run: |
+          $listener = Get-NetTCPConnection -State Listen -LocalPort 47822 -ErrorAction SilentlyContinue
+          if ($listener) {
+            throw "Port 47822 is already in use before the frozen-app smoke test."
+          }
+          $process = Start-Process -FilePath ".\dist\Dashboard-Time\Dashboard-Time.exe" -ArgumentList "--no-open" -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(25)
+            $response = $null
+            while ((Get-Date) -lt $deadline -and $null -eq $response) {
+              if ($process.HasExited) {
+                throw "Dashboard-Time.exe exited before it served the dashboard."
+              }
+              try {
+                $candidate = Invoke-WebRequest -Uri "http://127.0.0.1:47822/" -TimeoutSec 2
+                if ($candidate.StatusCode -eq 200) {
+                  $response = $candidate
+                }
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if ($null -eq $response) {
+              throw "Dashboard-Time.exe did not serve HTTP 200 on port 47822."
+            }
+          } finally {
+            if (!$process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
+      - name: Package the release and checksum
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:REQUESTED_TAG) { $env:REQUESTED_TAG } else { $env:RELEASE_REF -replace '^release/', '' }
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "Release tag must look like vMAJOR.MINOR.PATCH; got '$tag'."
+          }
+          $asset = "Dashboard-Time-win-x64-$tag.zip"
+          $privateFiles = Get-ChildItem -Path ".\dist\Dashboard-Time" -Recurse -File | Where-Object { $_.Name -in @("data.json", "time_data.json") }
+          if ($privateFiles) {
+            throw "Refusing to package user activity data: $($privateFiles.FullName -join ', ')."
+          }
+          Compress-Archive -Path ".\dist\Dashboard-Time" -DestinationPath $asset -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLower()
+          "$hash  $asset" | Set-Content "$asset.sha256" -NoNewline -Encoding ascii
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_ASSET=$asset" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:RELEASE_TAG 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --target $env:GITHUB_SHA --title "Dashboard Time $env:RELEASE_TAG" --generate-notes
+          }

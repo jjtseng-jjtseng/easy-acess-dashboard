@@ -96,8 +96,15 @@ def _proximity(hour):
     return near
 
 
-def top(derived, dow, hour, limit, tiebreak):
-    """The `limit` items you're most likely to use around (dow, hour), best first.
+def rhythm(derived, dow):
+    """When you're around, hour by hour, on this kind of day (weekday or weekend), scaled 0..1."""
+    kind = _Around(derived["active"], dow).kind
+    peak = max(kind)
+    return [round(v / peak, 3) for v in kind] if peak > 0 else [0.0] * 24
+
+
+def top(derived, dow, hour, limit, tiebreak, keys=None):
+    """The `limit` items you're most likely to use around (dow, hour), best first (only `keys`, if given).
 
     An item's score is its best hour near the moment, discounted the further that hour is from it, so a 9pm
     habit scores high at 9:30pm, less at 8:30pm, and nothing at noon. Each row has: key; rate (that score,
@@ -112,6 +119,8 @@ def top(derived, dow, hour, limit, tiebreak):
 
     scored = []
     for key, hits in derived["hits"].items():
+        if keys is not None and key not in keys:
+            continue
         total = sum(hits)
         overall = total / total_active if total_active else 0.0
         rate = max((w * around.rate(hits, h, overall, config.PRIOR_STRENGTH) for h, w in near), default=0.0)
