@@ -73,6 +73,85 @@ jobs:
             }
           }
 
+      - name: Build the Windows installer
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:REQUESTED_TAG) { $env:REQUESTED_TAG } else { $env:RELEASE_REF -replace '^release/', '' }
+          if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "Release tag must look like vMAJOR.MINOR.PATCH; got '$tag'."
+          }
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($tag -ne "v$version") {
+            throw "VERSION ($version) does not match release tag ($tag)."
+          }
+          $privateFiles = Get-ChildItem -Path ".\dist\Time-Board" -Recurse -File | Where-Object { $_.Name -in @("data.json", "time_data.json") }
+          if ($privateFiles) {
+            throw "Refusing to package user activity data: $($privateFiles.FullName -join ', ')."
+          }
+          $compiler = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (!$compiler) {
+            throw "Inno Setup 6 compiler (ISCC.exe) is not installed on this Windows runner."
+          }
+          $installerName = "Time-Board-Setup-win-x64-$tag.exe"
+          $installerBase = [System.IO.Path]::GetFileNameWithoutExtension($installerName)
+          $installerDir = Join-Path (Get-Location).Path "dist\installer"
+          New-Item -ItemType Directory -Force -Path $installerDir | Out-Null
+          & $compiler "/DAppVersion=$version" "/O$installerDir" "/F$installerBase" "installer\TimeBoard.iss"
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath (Join-Path $installerDir $installerName))) {
+            throw "The Windows installer build failed."
+          }
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_INSTALLER=$installerName" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Smoke-test the installed application
+        run: |
+          $installer = Join-Path (Get-Location).Path "dist\installer\$env:RELEASE_INSTALLER"
+          $installDir = Join-Path $env:RUNNER_TEMP "TimeBoardInstall-$env:GITHUB_RUN_ID"
+          $setup = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$installDir`"") -PassThru -Wait
+          if ($setup.ExitCode -ne 0) {
+            throw "Installer exited with code $($setup.ExitCode)."
+          }
+          $installedApp = Join-Path $installDir "Time-Board.exe"
+          if (!(Test-Path -LiteralPath $installedApp)) {
+            throw "The installer did not install Time-Board.exe."
+          }
+          $process = Start-Process -FilePath $installedApp -ArgumentList "--no-open" -PassThru
+          try {
+            $deadline = (Get-Date).AddSeconds(25)
+            $served = $false
+            while ((Get-Date) -lt $deadline -and !$served) {
+              if ($process.HasExited) {
+                throw "The installed Time-Board.exe exited before it served the dashboard."
+              }
+              try {
+                $response = Invoke-WebRequest -Uri "http://127.0.0.1:47822/" -TimeoutSec 2
+                $served = $response.StatusCode -eq 200
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (!$served) {
+              throw "The installed Time-Board.exe did not serve HTTP 200."
+            }
+          } finally {
+            if (!$process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+          $uninstaller = Join-Path $installDir "unins000.exe"
+          if (!(Test-Path -LiteralPath $uninstaller)) {
+            throw "The installer did not create an uninstaller."
+          }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -PassThru -Wait
+          if ($uninstall.ExitCode -ne 0 -or (Test-Path -LiteralPath $installedApp)) {
+            throw "The installed application was not removed cleanly."
+          }
+
       - name: Package the release and checksum
         env:
           RELEASE_REF: ${{ github.ref_name }}
@@ -90,6 +169,12 @@ jobs:
           Compress-Archive -Path ".\dist\Time-Board" -DestinationPath $asset -CompressionLevel Optimal
           $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLower()
           "$hash  $asset" | Set-Content "$asset.sha256" -NoNewline -Encoding ascii
+          $installer = Join-Path (Get-Location).Path "dist\installer\$env:RELEASE_INSTALLER"
+          if (!(Test-Path -LiteralPath $installer)) {
+            throw "The Windows installer is missing."
+          }
+          $installerHash = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLower()
+          "$installerHash  $env:RELEASE_INSTALLER" | Set-Content "$installer.sha256" -NoNewline -Encoding ascii
           "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "RELEASE_ASSET=$asset" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
@@ -99,7 +184,7 @@ jobs:
         run: |
           gh release view $env:RELEASE_TAG 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --clobber
+            gh release upload $env:RELEASE_TAG "dist/installer/$env:RELEASE_INSTALLER" "dist/installer/$env:RELEASE_INSTALLER.sha256" $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --clobber
           } else {
-            gh release create $env:RELEASE_TAG $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --target $env:GITHUB_SHA --title "Time Board $env:RELEASE_TAG" --generate-notes
+            gh release create $env:RELEASE_TAG "dist/installer/$env:RELEASE_INSTALLER" "dist/installer/$env:RELEASE_INSTALLER.sha256" $env:RELEASE_ASSET "$env:RELEASE_ASSET.sha256" --target $env:GITHUB_SHA --title "Time Board $env:RELEASE_TAG" --notes "Download the Setup EXE to install Time Board with a Start menu shortcut and Windows uninstaller. The ZIP is an optional portable copy."
           }
